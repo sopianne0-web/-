@@ -1,11 +1,12 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
+import plotly.express as px
 
 # 1. 페이지 레이아웃 설정
 st.set_page_config(page_title="바른지성 논술 성적 관리 시스템", layout="wide")
 
-# 2. 고급스러운 Navy/Slate Gray 테마 및 A4 인쇄 레이아웃 제어 CSS
+# 2. 고급스러운 Navy/Slate Gray 테마 및 모바일/인쇄 최적화 하이브리드 CSS
 st.markdown("""
 <style>
     body { background-color: #F8FAFC; }
@@ -54,7 +55,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# 3. 임시 데이터베이스 기동 및 샘플(Mock) 데이터 적재 (전화번호 필드 추가)
+# 3. 임시 데이터베이스 기동 및 샘플(Mock) 데이터 적재
 if "db" not in st.session_state:
     st.session_state.db = [
         {
@@ -101,7 +102,6 @@ if user_mode == "👨‍👩‍👦 학부모/학생 전용 조회":
     
     if search_name and search_phone:
         df_db = pd.DataFrame(st.session_state.db)
-        # 이름과 전화번호 뒷자리가 모두 일치하는지 보안 교차 검증
         df_student = df_db[(df_db["student_name"] == search_name) & (df_db["student_phone"] == search_phone)] if len(df_db) > 0 else pd.DataFrame()
         
         if len(df_student) > 0:
@@ -189,7 +189,6 @@ if user_mode == "👨‍👩‍👦 학부모/학생 전용 조회":
                     with col_c1:
                         st.markdown("<p style='font-weight:bold; color:#1B365D; margin-bottom:5px;'>📈 회차별 총점 발달 추이 (반 평균 대조선 포함)</p>", unsafe_allow_html=True)
                         
-                        # 🌟 반 평균선과 내 점수 추이를 한 눈에 대조하는 고급 시각화 구성
                         fig_trend = go.Figure()
                         fig_trend.add_trace(go.Scatter(x=df_filtered["week"], y=df_filtered["reg_total"], mode='lines+markers', name='내 정규 점수', line=dict(color='#1B365D', width=3)))
                         fig_trend.add_trace(go.Scatter(x=df_filtered["week"], y=df_filtered["class_avg"], mode='lines+markers', name='반 평균', line=dict(color='#94A3B8', dash='dash')))
@@ -214,7 +213,7 @@ elif user_mode == "🔒 학원 강사 관리 모드":
     
     if password == "1234":
         st.success("🔓 강사 인증에 성공했습니다.")
-        tab1, tab2 = st.tabs(["✍ *신규 성적 입력", "🗄 전체 데이터베이스 원장 관리"])
+        tab1, tab2 = st.tabs(["✍ 신규 성적 입력", "🗄 전체 데이터베이스 원장 관리"])
         
         with tab1:
             st.subheader("📝 학생별 주차 성적 수동 입력")
@@ -222,4 +221,69 @@ elif user_mode == "🔒 학원 강사 관리 모드":
             with c1:
                 in_name = st.text_input("학생 이름", "홍길동")
                 in_class = st.text_input("수강 반", "명문대 수시 집중반")
-                in_phone = st.text_input("📱 학부모 인증용
+                in_phone = st.text_input("📱 학부모 인증용 전화번호 뒷 4자리", "1234")
+            with c2:
+                in_week = st.text_input("해당 주차 정보", "정규 23회차")
+                in_type = st.selectbox("🌟 논술 문항 유형 선택", ["요약형", "비교형", "비판/평가형", "대안제시형", "도표/통계분석형"], index=1)
+                in_class_avg = st.number_input("📊 해당 주차 반 평균 총점", min_value=0, max_value=100, value=72)
+            
+            in_instructor = st.text_input("담당 강사 성명", "김논술")
+            
+            st.markdown("---")
+            col_reg, col_supp = st.columns(2)
+            
+            with col_reg:
+                st.markdown("### 📘 [정규 문항] 점수 및 코멘트")
+                in_reg_name = st.text_input("정규 문제명", "2020 연세대 수시 정규")
+                r_scores = {cat: st.slider(f"정규-{cat}", 0, 20, 15) for cat in ["이해력", "분석력", "논증력", "창의력", "표현력"]}
+                r_comments = {
+                    "reading": st.text_input("정규-독해 코멘트", "글의 대조적 구도를 파악하는 이해가 안정적임."),
+                    "topic": st.text_input("정규-출제논점 코멘트", "제시문 속에 감춰진 전제를 다차원적으로 파고듦."),
+                    "concept": st.text_input("정규-배경지식 코멘트", "자유론적 가치의 한계를 적정 수준에서 비틀어 지적함."),
+                    "other": st.text_input("정규-기타 코멘트", "문장의 결말 och 주술 호응이 상당히 개선됨.")
+                }
+                
+            with col_supp:
+                st.markdown("### 📙 [보충 문항] 점수 및 코멘트")
+                in_supp_name = st.text_input("보충 문제명", "요약 기법 및 추론 보충")
+                s_scores = {cat: st.slider(f"보충-{cat}", 0, 20, 14) for cat in ["이해력", "분석력", "논증력", "창의력", "표현력"]}
+                s_comments = {
+                    "reading": st.text_input("보충-독해 코멘트", "기초 사상의 주요 갈래를 빈틈없이 명료화함."),
+                    "topic": st.text_input("보충-출제논점 코멘트", "제시문의 세부 지엽적 개념을 가볍게 축소 해석함."),
+                    "concept": st.text_input("보충-배경지식 코멘트", "주장 설계에 필수 이론을 잘 용해시켜 녹임."),
+                    "other": st.text_input("보충-기타 코멘트", "맞춤법 및 문장 구획 나누기가 올바름.")
+                }
+            
+            in_guide = st.text_area("🧭 강사 종합 가이드 및 처방 지침", "주제 파악 능력이 우수합니다. 본론 서술 시 인과 관계 결속성에 조금 더 집중합시다.")
+            
+            if st.button("💾 현재 주차 성적 DB에 최종 저장하기", use_container_width=True):
+                new_record = {
+                    "student_name": in_name, "student_phone": in_phone, "class_name": in_class, "week": in_week, "essay_type": in_type, "instructor": in_instructor,
+                    "reg_task_name": in_reg_name, "reg_scores": r_scores, "reg_total": sum(r_scores.values()), "class_avg": in_class_avg, "reg_comments": r_comments,
+                    "supp_task_name": in_supp_name, "supp_scores": s_scores, "supp_total": sum(s_scores.values()), "supp_comments": s_comments,
+                    "overall_guide": in_guide
+                }
+                
+                duplicate_idx = next((i for i, item in enumerate(st.session_state.db) if item["student_name"] == in_name and item["week"] == in_week), None)
+                if duplicate_idx is not None:
+                    st.session_state.db[duplicate_idx] = new_record
+                    st.success(f"⚠️ 기존 {in_name} 학생의 {in_week} 데이터가 업데이트되었습니다.")
+                else:
+                    st.session_state.db.append(new_record)
+                    st.success(f"✅ {in_name} 학생의 {in_week} 신규 성적이 저장되었습니다.")
+                    
+        with tab2:
+            st.subheader("🗄 원정 데이터베이스")
+            if len(st.session_state.db) > 0:
+                df_view = pd.DataFrame([{
+                    "학생 이름": x["student_name"], "인증번호": x["student_phone"], "클래스": x["class_name"], "회차": x["week"], "단원 유형": x["essay_type"],
+                    "정규 총점": x["reg_total"], "반 평균": x["class_avg"], "보충 총점": x["supp_total"], "강사": x["instructor"]
+                } for x in st.session_state.db])
+                st.dataframe(df_view, use_container_width=True)
+                
+                csv_data = df_view.to_csv(index=False).encode('utf-8-sig')
+                st.download_button(label="📥 전체 성적 데이터 백업 다운로드 (CSV)", data=csv_data, file_name="nonsul_db.csv", mime="text/csv", use_container_width=True)
+                
+                if st.button("🚨 원장 전체 초기화", type="primary"):
+                    st.session_state.db = []
+                    st.rerun()
